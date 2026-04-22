@@ -1,9 +1,9 @@
 import cv2
 import time
+import platform  # 新增用于判断操作系统
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QImage
 from ultralytics import YOLO
-
 
 class VideoWorker(QThread):
     change_pixmap_signal = Signal(QImage, bool, float)
@@ -26,15 +26,23 @@ class VideoWorker(QThread):
         self.camera_index = 0
         self.cap = None
 
+    def _get_camera_backend(self):
+        """自动根据系统选择摄像头后端驱动"""
+        if platform.system() == "Windows":
+            return cv2.CAP_DSHOW  # Windows下使用DirectShow提高启动速度
+        return cv2.CAP_ANY        # Linux下使用默认驱动 (V4L2)
+
     def update_camera(self, index):
         self.camera_index = index
         if self.cap and self.cap.isOpened():
             self.cap.release()
-        self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+        # 使用适配后的后端
+        self.cap = cv2.VideoCapture(self.camera_index, self._get_camera_backend())
 
     def run(self):
         if not self.cap:
-            self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+            # 使用适配后的后端
+            self.cap = cv2.VideoCapture(self.camera_index, self._get_camera_backend())
 
         prev_time = 0
         while self.running:
@@ -61,6 +69,7 @@ class VideoWorker(QThread):
 
                     self.ui_ready = False
                     self.change_pixmap_signal.emit(qt_img, is_fall, fps)
+                    pass
             else:
                 self.msleep(100)
         if self.cap: self.cap.release()

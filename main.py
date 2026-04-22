@@ -1,4 +1,5 @@
 import sys, os, time, cv2, subprocess
+import platform  #引入系统识别模块
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
@@ -13,6 +14,11 @@ except ImportError as e:
 
 class Controller(QMainWindow):
     def __init__(self):
+        #初始化时先判定系统环境
+        self.os_type=platform.system()
+        #判定OpenCV驱动后端
+        self.cap_backend = cv2.CAP_DSHOW if self.os_type == "Windows" else cv2.CAP_ANY
+
         super().__init__()
         print("[MAIN] 正在初始化窗口...")
         self.setWindowTitle("居家康复监测系统 v3.3")
@@ -79,12 +85,13 @@ class Controller(QMainWindow):
     def refresh_cameras(self):
         self.ui.cam_selector.blockSignals(True)
         self.ui.cam_selector.clear()
-        valid = []
+        valid=[]
         for i in range(3):
-            c = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+            c=cv2.VideoCapture(i,self.cap_backend)
             if c.isOpened():
                 valid.append(i)
                 c.release()
+
         self.available_cams = valid
         self.ui.cam_selector.addItems([f"设备 {i}" for i in valid])
         self.ui.cam_selector.blockSignals(False)
@@ -103,10 +110,14 @@ class Controller(QMainWindow):
 
     def open_folder(self):
         path = os.path.join(os.getcwd(), "records")
-        if not os.path.exists(path): os.makedirs(path)
-        if sys.platform == 'win32':
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        if self.os_type=='Windows':
             os.startfile(path)
-        else:
+        elif self.os_type == 'Darwin': #MacOS
+            subprocess.run(['open', path])
+        else:  #Linux
             subprocess.run(['xdg-open', path])
 
     def add_log(self, msg):
