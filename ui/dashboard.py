@@ -41,7 +41,7 @@ class MainDashboard(QWidget):
 
         self.cfg_group = QGroupBox("检测参数微调")
         self.cfg_lay = QVBoxLayout(self.cfg_group)
-        self.cfg_lay.addWidget(QLabel("跌倒灵敏度 (滑块越小越灵敏):"))
+        self.cfg_lay.addWidget(QLabel("跌倒灵敏度 (滑块越大越灵敏):"))
         self.t_slider = QSlider(Qt.Horizontal)
         self.t_slider.setRange(30, 90)
         self.t_slider.setValue(60)
