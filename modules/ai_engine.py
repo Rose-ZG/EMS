@@ -33,7 +33,7 @@ class VideoWorker(QThread):
             self.camera_id = "/dev/video0"   # 默认路径
 
         self.cap = None
-        self.use_gstreamer = False
+        self.use_gstreamer = True
 
         # Linux 下自动检测 GStreamer 可用性
         if self.os_type == "Linux":
@@ -51,14 +51,14 @@ class VideoWorker(QThread):
             except:
                 print("[AI] GStreamer 检测失败，使用 V4L2 后端")
 
-    def _open_camera_windows(self, index):
-        """Windows 下使用 DirectShow 后端打开摄像头"""
-        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-        if cap.isOpened():
-            # 可选：设置分辨率（根据摄像头支持情况）
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        return cap
+    def _open_camera_linux(self, device_path):
+        # 强制使用 GStreamer，不再回退
+        gst_pipeline = (
+            f"v4l2src device={device_path} ! "
+            "video/x-raw, format=YUY2, width=640, height=480, framerate=30/1 ! "
+            "videoconvert ! video/x-raw, format=BGR ! appsink"
+        )
+        return cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
 
     def _open_camera_linux(self, device_path):
         """Linux 下根据检测结果选择 GStreamer 或 V4L2 打开"""
