@@ -43,7 +43,7 @@ elder_monitor_system/
 ## 安装依赖
 
 ```bash
-pip install PyQt5 opencv-python ultralytics pyserial
+pip install PySide6 opencv-python ultralytics pyserial
 ```
 
 ## 使用方法

@@ -1,5 +1,5 @@
 import sys, os, time, cv2, subprocess
-import platform  #引入系统识别模块
+import platform
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
@@ -11,14 +11,9 @@ try:
 except ImportError as e:
     print(f"导入模块失败，请检查文件夹名是否正确: {e}")
 
-
 class Controller(QMainWindow):
     def __init__(self):
-        #初始化时先判定系统环境
-        self.os_type=platform.system()
-        #判定OpenCV驱动后端
-        self.cap_backend = cv2.CAP_MSMF if self.os_type == "Windows" else cv2.CAP_ANY
-
+        self.os_type = platform.system()
         super().__init__()
         print("[MAIN] 正在初始化窗口...")
         self.setWindowTitle("居家康复监测系统 v4.0")
@@ -27,7 +22,7 @@ class Controller(QMainWindow):
         self.available_cams = []
         self.fall_counter = 0
 
-        # 1. 加载UI
+        # 1. 加载 UI
         self.ui = MainDashboard()
         self.setCentralWidget(self.ui)
         print("[MAIN] UI 加载完成")
@@ -36,7 +31,7 @@ class Controller(QMainWindow):
         mp3_path = os.path.join(os.path.dirname(__file__), "RING.wav")
         self.hw = HardwareManager(mp3_path=mp3_path)
 
-        # 3. 加载AI线程
+        # 3. 加载 AI 线程
         self.worker = VideoWorker()
         self.worker.change_pixmap_signal.connect(self.update_ui, Qt.QueuedConnection)
 
@@ -63,12 +58,12 @@ class Controller(QMainWindow):
 
         if is_fall and not self.worker.is_alarming:
             self.fall_counter += 1
-            if self.fall_counter > 12: self.trigger_alarm()
+            if self.fall_counter > 12:
+                self.trigger_alarm()
         else:
             self.fall_counter = 0
         self.worker.ui_ready = True
 
-    # 在 Controller 类中修改 trigger_alarm 方法
     def trigger_alarm(self):
         if self.worker.is_alarming:
             return
@@ -78,7 +73,6 @@ class Controller(QMainWindow):
             font-size: 20pt; color: white; background: #d9534f; 
             font-weight: bold; border-radius: 14px; padding: 14px;
         """)
-        # 新硬件管理：同时触发串口和语音
         self.hw.alert_with_voice(active=True)
         self.add_log("CRITICAL: 检测到跌倒！已触发报警")
 
@@ -91,7 +85,7 @@ class Controller(QMainWindow):
                 stop:0 #a6e3a1, stop:1 #94e2d5);
             border-radius: 14px; padding: 14px;
         """)
-        self.hw.alert_with_voice(active=False)  # 停止报警
+        self.hw.alert_with_voice(active=False)
         self.add_log("INFO: 系统已复位")
 
     def refresh_cameras(self):
@@ -99,42 +93,29 @@ class Controller(QMainWindow):
         self.ui.cam_selector.clear()
         valid = []
 
-        if self.os_type == "Windows":
-            # Windows：枚举摄像头索引
-            for i in range(3):
-                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
-                if cap.isOpened():
-                    ret, _ = cap.read()
-                    if ret:
-                        valid.append(i)
-                    cap.release()
-                else:
-                    cap.release()
-            self.available_cams = valid
-            self.ui.cam_selector.addItems([f"设备 {i}" for i in valid])
-        else:
-            # Linux：枚举 /dev/video* 设备
-            for i in range(3):
-                dev = f"/dev/video{i}"
-                if not os.path.exists(dev):
-                    continue
-                # 使用 VideoWorker 中的 Linux 打开逻辑进行测试
-                tmp_cap = self.worker._open_camera_linux(dev)
-                if tmp_cap and tmp_cap.isOpened():
-                    ret, _ = tmp_cap.read()
-                    if ret:
-                        valid.append(dev)
-                    tmp_cap.release()
-                else:
-                    if tmp_cap:
-                        tmp_cap.release()
-            self.available_cams = valid
-            self.ui.cam_selector.addItems([os.path.basename(d) for d in valid])
+        backend = cv2.CAP_DSHOW if self.os_type == "Windows" else cv2.CAP_V4L2
+        fourcc = cv2.VideoWriter_fourcc(*'YUYV')
 
+        for i in range(3):
+            cap = cv2.VideoCapture(i, backend)
+            if cap.isOpened():
+                if self.os_type != "Windows":
+                    cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                ret, _ = cap.read()
+                if ret:
+                    valid.append(i)
+                cap.release()
+            else:
+                cap.release()
+
+        self.available_cams = valid
+        self.ui.cam_selector.addItems([f"设备 {i}" for i in valid])
         self.ui.cam_selector.blockSignals(False)
 
     def change_camera(self, index):
-        if index >= 0 and index < len(self.available_cams):
+        if 0 <= index < len(self.available_cams):
             cam_ref = self.available_cams[index]
             self.worker.update_camera(cam_ref)
 
@@ -148,14 +129,12 @@ class Controller(QMainWindow):
 
     def open_folder(self):
         path = os.path.join(os.getcwd(), "records")
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        if self.os_type=='Windows':
+        os.makedirs(path, exist_ok=True)
+        if self.os_type == 'Windows':
             os.startfile(path)
-        elif self.os_type == 'Darwin': #MacOS
+        elif self.os_type == 'Darwin':
             subprocess.run(['open', path])
-        else:  #Linux
+        else:
             subprocess.run(['xdg-open', path])
 
     def add_log(self, msg):
@@ -166,7 +145,6 @@ class Controller(QMainWindow):
         self.worker.wait()
         self.hw.close()
         event.accept()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

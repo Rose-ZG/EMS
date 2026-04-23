@@ -1,4 +1,3 @@
-# modules/hardware_ctrl.py
 import serial
 import serial.tools.list_ports
 import os
@@ -12,7 +11,6 @@ class HardwareManager:
         self.mp3_path = mp3_path
         self.os_type = platform.system()
 
-        # 初始化 pygame 音频
         pygame_imported = False
         try:
             import pygame
@@ -24,7 +22,6 @@ class HardwareManager:
             print(f"[HW] pygame 音频初始化失败: {e}")
         self.pygame_imported = pygame_imported
 
-        # 自动检测串口
         if port is None:
             port = self._auto_detect_serial()
         if port:
@@ -42,7 +39,6 @@ class HardwareManager:
         for p in ports:
             if "Bluetooth" not in p.description:
                 return p.device
-        # Linux 备用
         if self.os_type == "Linux":
             for dev in ["/dev/ttyUSB0", "/dev/ttyACM0", "/dev/ttyS0"]:
                 if os.path.exists(dev):
@@ -65,14 +61,13 @@ class HardwareManager:
             return
         def play():
             try:
-                # 停止之前的声音
                 self.pygame.mixer.music.stop()
                 self.pygame.mixer.music.load(self.mp3_path)
                 for i in range(repeat):
                     print(f"[HW] 播放报警音 ({i+1}/{repeat})...")
                     self.pygame.mixer.music.play()
                     while self.pygame.mixer.music.get_busy():
-                        self.pygame.time.delay(100)  # 等待播放完毕
+                        self.pygame.time.delay(100)
                 print("[HW] 报警音播放结束")
             except Exception as e:
                 print(f"[HW] 音频播放失败: {e}")
@@ -86,7 +81,6 @@ class HardwareManager:
             else:
                 print(f"[HW] 报警音频未找到: {self.mp3_path}")
         else:
-            # 停止报警声音
             if self.pygame_imported:
                 self.pygame.mixer.music.stop()
         print(f"[HW] 报警触发: 串口={serial_ok}")
