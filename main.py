@@ -17,11 +17,11 @@ class Controller(QMainWindow):
         #初始化时先判定系统环境
         self.os_type=platform.system()
         #判定OpenCV驱动后端
-        self.cap_backend = cv2.CAP_DSHOW if self.os_type == "Windows" else cv2.CAP_ANY
+        self.cap_backend = cv2.CAP_MSMF if self.os_type == "Windows" else cv2.CAP_ANY
 
         super().__init__()
         print("[MAIN] 正在初始化窗口...")
-        self.setWindowTitle("居家康复监测系统 v3.3")
+        self.setWindowTitle("居家康复监测系统 v4.0")
         self.resize(1200, 850)
 
         self.available_cams = []
@@ -33,7 +33,8 @@ class Controller(QMainWindow):
         print("[MAIN] UI 加载完成")
 
         # 2. 加载硬件
-        self.hw = HardwareManager()
+        mp3_path = os.path.join(os.path.dirname(__file__), "RING.wav")
+        self.hw = HardwareManager(mp3_path=mp3_path)
 
         # 3. 加载AI线程
         self.worker = VideoWorker()
@@ -67,38 +68,75 @@ class Controller(QMainWindow):
             self.fall_counter = 0
         self.worker.ui_ready = True
 
+    # 在 Controller 类中修改 trigger_alarm 方法
     def trigger_alarm(self):
-        if self.worker.is_alarming: return
+        if self.worker.is_alarming:
+            return
         self.worker.is_alarming = True
-        self.ui.status_label.setText("!!! 紧急报警 !!!")
-        self.ui.status_label.setStyleSheet("font-size: 20pt; color: white; background: #d9534f; font-weight: bold;")
-        self.hw.send_alarm(True)
-        self.add_log("CRITICAL: 检测到跌倒！")
+        self.ui.status_label.setText("🚨 紧急报警！")
+        self.ui.status_label.setStyleSheet("""
+            font-size: 20pt; color: white; background: #d9534f; 
+            font-weight: bold; border-radius: 14px; padding: 14px;
+        """)
+        # 新硬件管理：同时触发串口和语音
+        self.hw.alert_with_voice(active=True)
+        self.add_log("CRITICAL: 检测到跌倒！已触发报警")
 
     def reset_system(self):
         self.worker.is_alarming = False
-        self.ui.status_label.setText("系统监控中")
-        self.ui.status_label.setStyleSheet("font-size: 20pt; color: #2ecc71; font-weight: bold; background: #eee;")
-        self.hw.send_alarm(False)
+        self.ui.status_label.setText("🟢 系统监控中")
+        self.ui.status_label.setStyleSheet("""
+            font-size: 20pt; font-weight: bold; color: #11111b;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #a6e3a1, stop:1 #94e2d5);
+            border-radius: 14px; padding: 14px;
+        """)
+        self.hw.alert_with_voice(active=False)  # 停止报警
         self.add_log("INFO: 系统已复位")
 
     def refresh_cameras(self):
         self.ui.cam_selector.blockSignals(True)
         self.ui.cam_selector.clear()
-        valid=[]
-        for i in range(3):
-            c=cv2.VideoCapture(i,self.cap_backend)
-            if c.isOpened():
-                valid.append(i)
-                c.release()
+        valid = []
 
-        self.available_cams = valid
-        self.ui.cam_selector.addItems([f"设备 {i}" for i in valid])
+        if self.os_type == "Windows":
+            # Windows：枚举摄像头索引
+            for i in range(3):
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    ret, _ = cap.read()
+                    if ret:
+                        valid.append(i)
+                    cap.release()
+                else:
+                    cap.release()
+            self.available_cams = valid
+            self.ui.cam_selector.addItems([f"设备 {i}" for i in valid])
+        else:
+            # Linux：枚举 /dev/video* 设备
+            for i in range(3):
+                dev = f"/dev/video{i}"
+                if not os.path.exists(dev):
+                    continue
+                # 使用 VideoWorker 中的 Linux 打开逻辑进行测试
+                tmp_cap = self.worker._open_camera_linux(dev)
+                if tmp_cap and tmp_cap.isOpened():
+                    ret, _ = tmp_cap.read()
+                    if ret:
+                        valid.append(dev)
+                    tmp_cap.release()
+                else:
+                    if tmp_cap:
+                        tmp_cap.release()
+            self.available_cams = valid
+            self.ui.cam_selector.addItems([os.path.basename(d) for d in valid])
+
         self.ui.cam_selector.blockSignals(False)
 
     def change_camera(self, index):
-        if index >= 0 and self.available_cams:
-            self.worker.update_camera(self.available_cams[index])
+        if index >= 0 and index < len(self.available_cams):
+            cam_ref = self.available_cams[index]
+            self.worker.update_camera(cam_ref)
 
     def save_snapshot(self, prefix):
         path = os.path.join(os.getcwd(), "records")
