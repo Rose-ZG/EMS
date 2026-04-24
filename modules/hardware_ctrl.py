@@ -8,7 +8,7 @@ class HardwareManager:
     def __init__(self, port=None, baudrate=9600, mp3_path="RING.wav"):
         self.available = False
         self.ser = None
-        self.mp3_path = mp3_path
+        self.mp3_path = mp3_path          # 默认报警音
         self.os_type = platform.system()
 
         pygame_imported = False
@@ -56,22 +56,37 @@ class HardwareManager:
         return False
 
     def _play_mp3_async(self, repeat=2):
+        """播放默认报警音（内部使用）"""
+        self._play_audio_async(self.mp3_path, repeat)
+
+    def _play_audio_async(self, file_path, repeat=1):
+        """通用音频播放（异步）"""
         if not self.pygame_imported:
             print("[HW] pygame 未可用，无法播放音频")
             return
         def play():
             try:
                 self.pygame.mixer.music.stop()
-                self.pygame.mixer.music.load(self.mp3_path)
+                self.pygame.mixer.music.load(file_path)
                 for i in range(repeat):
-                    print(f"[HW] 播放报警音 ({i+1}/{repeat})...")
+                    print(f"[HW] 播放音频 ({i+1}/{repeat}): {file_path}")
                     self.pygame.mixer.music.play()
                     while self.pygame.mixer.music.get_busy():
                         self.pygame.time.delay(100)
-                print("[HW] 报警音播放结束")
+                print("[HW] 音频播放结束")
             except Exception as e:
                 print(f"[HW] 音频播放失败: {e}")
         threading.Thread(target=play, daemon=True).start()
+
+    def play_audio(self, file_path, repeat=1):
+        """供外部调用的音频播放接口"""
+        if os.path.exists(file_path):
+            print(f"[HW] 请求播放音频: {file_path}")
+            self._play_audio_async(file_path, repeat)
+            return True
+        else:
+            print(f"[HW] 音频文件未找到: {file_path}")
+            return False
 
     def alert_with_voice(self, active=True):
         serial_ok = self.send_alarm(active)

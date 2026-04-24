@@ -8,7 +8,6 @@ class MainDashboard(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        # 全局暗色主题，提升可读性
         self.setStyleSheet("""
             QWidget {
                 background-color: #1a1a2e;
@@ -178,7 +177,6 @@ class MainDashboard(QWidget):
         cfg_lay = QVBoxLayout(self.cfg_group)
         cfg_lay.setSpacing(18)
 
-        # 灵敏度滑块 + 数值显示
         sens_layout = QHBoxLayout()
         sens_layout.addWidget(QLabel("跌倒判定灵敏度:"))
         self.t_value_label = QLabel("60")
@@ -194,7 +192,6 @@ class MainDashboard(QWidget):
         self.t_slider.valueChanged.connect(lambda v: self.t_value_label.setText(str(v)))
         cfg_lay.addWidget(self.t_slider)
 
-        # 置信度滑块 + 数值显示
         conf_layout = QHBoxLayout()
         conf_layout.addWidget(QLabel("AI 检测置信度阈值:"))
         self.c_value_label = QLabel("50")
@@ -211,6 +208,25 @@ class MainDashboard(QWidget):
         cfg_lay.addWidget(self.c_slider)
 
         right_container.addWidget(self.cfg_group)
+
+        # ---- 新增：摔倒确认呼叫按钮 ----
+        self.call_btn = QPushButton("🆘 确认呼叫")
+        self.call_btn.setObjectName("call_btn")   # 便于单独设置样式
+        self.call_btn.setStyleSheet("""
+            QPushButton#call_btn {
+                height: 55px;
+                background-color: #fab387;
+                color: #1a1a2e;
+                font-weight: bold;
+                font-size: 16pt;
+                border-radius: 12px;
+                border: none;
+            }
+            QPushButton#call_btn:hover {
+                background-color: #f9e2af;
+            }
+        """)
+        right_container.addWidget(self.call_btn)
 
         # 日志输出
         log_label = QLabel("📋 系统运行日志:")
