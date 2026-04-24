@@ -1,6 +1,5 @@
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 
 class MainDashboard(QWidget):
     def __init__(self, parent=None):
@@ -114,7 +113,6 @@ class MainDashboard(QWidget):
         left_container = QVBoxLayout()
         left_container.setSpacing(14)
 
-        # 顶部工具栏
         top_bar = QHBoxLayout()
         top_bar.setSpacing(12)
         top_bar.addWidget(QLabel("📹"))
@@ -125,7 +123,6 @@ class MainDashboard(QWidget):
         top_bar.addWidget(self.ref_btn)
         left_container.addLayout(top_bar)
 
-        # 视频显示区
         self.video_label = QLabel("等待摄像头连接...")
         self.video_label.setFixedSize(640, 480)
         self.video_label.setStyleSheet("""
@@ -139,7 +136,6 @@ class MainDashboard(QWidget):
         self.video_label.setAlignment(Qt.AlignCenter)
         left_container.addWidget(self.video_label, 0, Qt.AlignCenter)
 
-        # 底部信息栏
         info_bar = QHBoxLayout()
         info_bar.setSpacing(18)
         self.fps_label = QLabel("FPS: 0.0")
@@ -158,7 +154,6 @@ class MainDashboard(QWidget):
         right_container = QVBoxLayout()
         right_container.setSpacing(20)
 
-        # 状态指示灯
         self.status_label = QLabel("🟢 系统实时监控中")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("""
@@ -172,7 +167,6 @@ class MainDashboard(QWidget):
         """)
         right_container.addWidget(self.status_label)
 
-        # 参数调优面板
         self.cfg_group = QGroupBox("⚙️ AI 参数动态调优")
         cfg_lay = QVBoxLayout(self.cfg_group)
         cfg_lay.setSpacing(18)
@@ -206,12 +200,11 @@ class MainDashboard(QWidget):
         self.c_slider.setTickInterval(10)
         self.c_slider.valueChanged.connect(lambda v: self.c_value_label.setText(str(v)))
         cfg_lay.addWidget(self.c_slider)
-
         right_container.addWidget(self.cfg_group)
 
-        # ---- 新增：摔倒确认呼叫按钮 ----
+        # 确认呼叫按钮
         self.call_btn = QPushButton("🆘 确认呼叫")
-        self.call_btn.setObjectName("call_btn")   # 便于单独设置样式
+        self.call_btn.setObjectName("call_btn")
         self.call_btn.setStyleSheet("""
             QPushButton#call_btn {
                 height: 55px;
@@ -233,8 +226,21 @@ class MainDashboard(QWidget):
         right_container.addWidget(log_label)
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
-        self.log_box.setMaximumHeight(160)
+        self.log_box.setMaximumHeight(120)
         right_container.addWidget(self.log_box)
+
+        # 紧急联系人设置
+        contact_group = QGroupBox("📞 紧急联系人")
+        contact_layout = QVBoxLayout(contact_group)
+        phone_layout = QHBoxLayout()
+        phone_layout.addWidget(QLabel("电话号码:"))
+        self.phone_edit = QLineEdit()
+        self.phone_edit.setPlaceholderText("输入手机号，如 +8613800000000")
+        phone_layout.addWidget(self.phone_edit)
+        self.save_phone_btn = QPushButton("保存")
+        phone_layout.addWidget(self.save_phone_btn)
+        contact_layout.addLayout(phone_layout)
+        right_container.addWidget(contact_group)
 
         # 复位按钮
         self.reset_btn = QPushButton("🚨 警报解除 / 硬件初始化")

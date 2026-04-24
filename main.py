@@ -1,11 +1,12 @@
 import sys, os, time, cv2, subprocess
 import platform
+import threading
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
 
 try:
-    from modules.ai_engine import VideoWorker
+    from modules.ai_engine import VideoWorker, VoiceAssistant
     from modules.hardware_ctrl import HardwareManager
     from ui.dashboard import MainDashboard
 except ImportError as e:
@@ -23,17 +24,25 @@ class Controller(QMainWindow):
         self.fall_start_time = None
         self.is_fall_ongoing = False
 
+        # 1. 加载 UI
         self.ui = MainDashboard()
         self.setCentralWidget(self.ui)
         print("[MAIN] UI 加载完成")
 
+        # 2. 加载硬件（可在此传入 Twilio 参数）
         mp3_path = os.path.join(os.path.dirname(__file__), "RING.wav")
-        self.hw = HardwareManager(mp3_path=mp3_path)
+        self.hw = HardwareManager(
+            mp3_path=mp3_path,
+            # twilio_sid="你的SID",
+            # twilio_token="你的Token",
+            # twilio_from="你的主叫号码"
+        )
 
-        self.worker = VideoWorker()
+        # 3. 加载 AI 线程
+        self.worker = VideoWorker(debug=False)   # 设置 debug=True 可查看检测数值
         self.worker.change_pixmap_signal.connect(self.update_ui, Qt.QueuedConnection)
 
-        # 绑定事件
+        # 4. 绑定事件
         self.ui.ref_btn.clicked.connect(self.refresh_cameras)
         self.ui.cam_selector.currentIndexChanged.connect(self.change_camera)
         self.ui.t_slider.valueChanged.connect(self.sync_params)
@@ -41,8 +50,8 @@ class Controller(QMainWindow):
         self.ui.reset_btn.clicked.connect(self.reset_system)
         self.ui.snap_btn.clicked.connect(lambda: self.save_snapshot("MANUAL"))
         self.ui.open_btn.clicked.connect(self.open_folder)
-        # 新增：摔倒确认呼叫按钮
         self.ui.call_btn.clicked.connect(self.call_for_help)
+        self.ui.save_phone_btn.clicked.connect(self.save_emergency_contact)
 
         self.worker.start()
         self.refresh_cameras()
@@ -58,18 +67,17 @@ class Controller(QMainWindow):
         self.ui.fps_label.setText(f"FPS: {fps:.1f}")
 
         if not self.worker.is_alarming:
-            if is_fall:
+            fall_ratio = self.worker.get_fall_ratio()
+            if fall_ratio > 0.7:                # 滑动窗口中70%为跌倒
                 if not self.is_fall_ongoing:
                     self.is_fall_ongoing = True
                     self.fall_start_time = time.time()
-                    print(f"[MAIN] 可能摔倒，开始计时 {self.fall_start_time:.2f}")
-                else:
-                    elapsed = time.time() - self.fall_start_time
-                    if elapsed > 0.5:
-                        self.trigger_alarm()
+                    print(f"[MAIN] 可能摔倒 (占比{fall_ratio:.2f})，开始计时")
+                elif time.time() - self.fall_start_time > 0.5:
+                    self.trigger_alarm()
             else:
                 if self.is_fall_ongoing:
-                    print("[MAIN] 姿态恢复正常，重置摔倒计时器")
+                    print("[MAIN] 跌倒占比降低，重置计时器")
                 self.is_fall_ongoing = False
                 self.fall_start_time = None
 
@@ -86,18 +94,61 @@ class Controller(QMainWindow):
         """)
         self.hw.alert_with_voice(active=True)
         self.add_log("CRITICAL: 检测到跌倒！已触发报警")
+        # 启动语音交互
+        self.start_voice_interaction()
 
     def call_for_help(self):
-        """手动触发呼叫求助"""
+        """手动确认呼叫"""
         call_path = os.path.join(os.path.dirname(__file__), "CALL.wav")
         if os.path.exists(call_path):
-            self.hw.play_audio(call_path, repeat=1)   # 播放一次
+            self.hw.play_audio(call_path, repeat=1)
             self.add_log("USER: 手动触发呼叫求助")
-            # 如果希望同时发送串口信号，可增加：
-            # self.hw.send_alarm(True)
         else:
-            self.add_log("ERROR: CALL.wav 文件未找到，请检查")
-            print("[MAIN] CALL.wav 不存在，无法播放呼叫音频")
+            self.add_log("ERROR: CALL.wav 文件未找到")
+
+    def start_voice_interaction(self):
+        def interact():
+            try:
+                assistant = VoiceAssistant()
+            except Exception as e:
+                self.add_log(f"语音模块不可用: {e}")
+                # 无语音功能时，直接拨打紧急电话（或可配置跳过）
+                self.call_emergency()
+                return
+
+            print("[系统] 正在询问摔倒者...")
+            self.hw.play_audio(os.path.join(os.path.dirname(__file__), "CALL.wav"), repeat=1)
+            time.sleep(1)
+
+            for attempt in range(2):
+                assistant.record_audio()
+                text, ok = assistant.speech_to_text()
+                if ok:
+                    result = assistant.analyze_response(text)
+                    if result == 'safe':
+                        self.add_log(f"用户回复“{text}” (安全)")
+                        self.reset_system()
+                        return
+                    elif result == 'danger':
+                        self.add_log(f"用户回复“{text}” (危险)")
+                        self.call_emergency()
+                        return
+                    else:
+                        self.add_log(f"未识别明确含义，将再次询问 (第{attempt + 1}次)")
+                else:
+                    self.add_log("未收到语音，将再次询问...")
+            self.add_log("未得到安全确认，拨打紧急电话")
+            self.call_emergency()
+
+        threading.Thread(target=interact, daemon=True).start()
+
+    def call_emergency(self):
+        phone = self.ui.phone_edit.text().strip()
+        if phone:
+            self.hw.call_emergency(phone)
+            self.add_log(f"已拨打紧急联系人: {phone}")
+        else:
+            self.add_log("未设置紧急联系人电话！")
 
     def reset_system(self):
         self.worker.is_alarming = False
@@ -112,6 +163,13 @@ class Controller(QMainWindow):
         """)
         self.hw.alert_with_voice(active=False)
         self.add_log("INFO: 系统已复位")
+
+    def save_emergency_contact(self):
+        phone = self.ui.phone_edit.text().strip()
+        if phone:
+            self.add_log(f"紧急联系人已保存: {phone}")
+        else:
+            self.add_log("电话号码不能为空")
 
     def refresh_cameras(self):
         print("[MAIN] 开始刷新摄像头列表")
@@ -185,3 +243,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"[CRASH] 程序发生致命错误: {e}")
         input("按回车键退出...")
+

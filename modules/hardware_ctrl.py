@@ -5,11 +5,18 @@ import threading
 import platform
 
 class HardwareManager:
-    def __init__(self, port=None, baudrate=9600, mp3_path="RING.wav"):
+    def __init__(self, port=None, baudrate=9600, mp3_path="RING.wav",
+                 twilio_sid=None, twilio_token=None, twilio_from=None):
         self.available = False
         self.ser = None
-        self.mp3_path = mp3_path          # 默认报警音
+        self.mp3_path = mp3_path
         self.os_type = platform.system()
+
+        # Twilio 配置（可选）
+        self.twilio_sid = twilio_sid
+        self.twilio_token = twilio_token
+        self.twilio_from = twilio_from
+        self.twilio_enabled = all([twilio_sid, twilio_token, twilio_from])
 
         pygame_imported = False
         try:
@@ -55,12 +62,7 @@ class HardwareManager:
                 print(f"[HW] 串口发送失败: {e}")
         return False
 
-    def _play_mp3_async(self, repeat=2):
-        """播放默认报警音（内部使用）"""
-        self._play_audio_async(self.mp3_path, repeat)
-
     def _play_audio_async(self, file_path, repeat=1):
-        """通用音频播放（异步）"""
         if not self.pygame_imported:
             print("[HW] pygame 未可用，无法播放音频")
             return
@@ -79,26 +81,42 @@ class HardwareManager:
         threading.Thread(target=play, daemon=True).start()
 
     def play_audio(self, file_path, repeat=1):
-        """供外部调用的音频播放接口"""
         if os.path.exists(file_path):
-            print(f"[HW] 请求播放音频: {file_path}")
             self._play_audio_async(file_path, repeat)
-            return True
         else:
             print(f"[HW] 音频文件未找到: {file_path}")
-            return False
 
     def alert_with_voice(self, active=True):
         serial_ok = self.send_alarm(active)
         if active:
             if os.path.exists(self.mp3_path):
-                self._play_mp3_async(repeat=2)
+                self._play_audio_async(self.mp3_path, repeat=2)
             else:
                 print(f"[HW] 报警音频未找到: {self.mp3_path}")
         else:
             if self.pygame_imported:
                 self.pygame.mixer.music.stop()
         print(f"[HW] 报警触发: 串口={serial_ok}")
+
+    def call_emergency(self, to_number):
+        """拨打紧急联系人，如果配置了 Twilio 则真实拨打，否则模拟"""
+        if self.twilio_enabled:
+            try:
+                from twilio.rest import Client
+                client = Client(self.twilio_sid, self.twilio_token)
+                call = client.calls.create(
+                    url="http://demo.twilio.com/docs/voice.xml",
+                    to=to_number,
+                    from_=self.twilio_from
+                )
+                print(f"[HW] 呼叫 {to_number} 成功，SID: {call.sid}")
+                return True
+            except Exception as e:
+                print(f"[HW] Twilio 呼叫失败: {e}")
+                return False
+        else:
+            print(f"[HW] 模拟呼叫 {to_number}")
+            return True
 
     def close(self):
         if self.pygame_imported:

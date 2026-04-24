@@ -16,7 +16,7 @@ Elder Monitor System is an intelligent monitoring solution designed for nursing 
 
 ## Technology Stack
 
-- **GUI Framework**: PyQt5
+- **GUI Framework**: PySide6
 - **AI Model**: YOLOv8 Pose (Ultralytics)
 - **Image Processing**: OpenCV
 - **Hardware Communication**: PySerial
@@ -41,7 +41,7 @@ elder_monitor_system/
 ## Install Dependencies
 
 ```bash
-pip install PyQt5 opencv-python ultralytics pyserial
+pip install PySide6 opencv-python ultralytics pyserial
 ```
 
 ## How to Use

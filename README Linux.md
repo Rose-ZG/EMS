@@ -17,13 +17,13 @@
 
 **二、 环境初始化 (核心步骤)**
 
-Ubuntu 系统通常不带 Qt 运行环境，必须先安装图形支持库：
+Ubuntu 系统通常不带Qt运行环境，必须先安装图形支持库：
 
 \# 1. 更新软件源
 
 sudo apt update \&\& sudo apt upgrade -y
 
-\# 2. 安装图形显示与 OpenCV 依赖 
+\# 2. 安装图形显示与OpenCV依赖 
 
 sudo apt install libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \\
 
