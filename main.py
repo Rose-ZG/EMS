@@ -16,26 +16,26 @@ class Controller(QMainWindow):
         self.os_type = platform.system()
         super().__init__()
         print("[MAIN] 正在初始化窗口...")
-        self.setWindowTitle("居家康复监测系统 v4.0")
+        self.setWindowTitle("居家康复监测系统 v5.0")
         self.resize(1200, 850)
 
         self.available_cams = []
         self.fall_counter = 0
 
-        # 1. 加载 UI
+        # UI
         self.ui = MainDashboard()
         self.setCentralWidget(self.ui)
         print("[MAIN] UI 加载完成")
 
-        # 2. 加载硬件
+        # 硬件
         mp3_path = os.path.join(os.path.dirname(__file__), "RING.wav")
         self.hw = HardwareManager(mp3_path=mp3_path)
 
-        # 3. 加载 AI 线程
+        # AI 线程
         self.worker = VideoWorker()
         self.worker.change_pixmap_signal.connect(self.update_ui, Qt.QueuedConnection)
 
-        # 4. 绑定事件
+        # 事件绑定
         self.ui.ref_btn.clicked.connect(self.refresh_cameras)
         self.ui.cam_selector.currentIndexChanged.connect(self.change_camera)
         self.ui.t_slider.valueChanged.connect(self.sync_params)
@@ -44,12 +44,14 @@ class Controller(QMainWindow):
         self.ui.snap_btn.clicked.connect(lambda: self.save_snapshot("MANUAL"))
         self.ui.open_btn.clicked.connect(self.open_folder)
 
-        self.refresh_cameras()
         self.worker.start()
+        self.refresh_cameras()
         print("[MAIN] 系统准备就绪")
 
     def sync_params(self):
         self.worker.threshold = self.ui.t_slider.value() / 100.0
+        # 角度阈值同步（越小越灵敏，与滑块值反向）
+        self.worker.angle_threshold = 90 - self.ui.t_slider.value()   # 30~90度范围
         self.worker.conf_val = self.ui.c_slider.value() / 100.0
 
     def update_ui(self, img, is_fall, fps):
@@ -70,7 +72,7 @@ class Controller(QMainWindow):
         self.worker.is_alarming = True
         self.ui.status_label.setText("🚨 紧急报警！")
         self.ui.status_label.setStyleSheet("""
-            font-size: 20pt; color: white; background: #d9534f; 
+            font-size: 20pt; color: white; background: #d9534f;
             font-weight: bold; border-radius: 14px; padding: 14px;
         """)
         self.hw.alert_with_voice(active=True)
@@ -92,32 +94,25 @@ class Controller(QMainWindow):
         self.ui.cam_selector.blockSignals(True)
         self.ui.cam_selector.clear()
         valid = []
-
-        backend = cv2.CAP_DSHOW if self.os_type == "Windows" else cv2.CAP_V4L2
-        fourcc = cv2.VideoWriter_fourcc(*'YUYV')
-
         for i in range(3):
-            cap = cv2.VideoCapture(i, backend)
+            cap = cv2.VideoCapture(i)
             if cap.isOpened():
-                if self.os_type != "Windows":
-                    cap.set(cv2.CAP_PROP_FOURCC, fourcc)
-                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                 ret, _ = cap.read()
                 if ret:
                     valid.append(i)
                 cap.release()
-            else:
-                cap.release()
-
         self.available_cams = valid
         self.ui.cam_selector.addItems([f"设备 {i}" for i in valid])
+        if valid:
+            self.ui.cam_selector.setCurrentIndex(0)
+            self.change_camera(0)
         self.ui.cam_selector.blockSignals(False)
 
     def change_camera(self, index):
         if 0 <= index < len(self.available_cams):
-            cam_ref = self.available_cams[index]
-            self.worker.update_camera(cam_ref)
+            self.worker.update_camera(self.available_cams[index])
 
     def save_snapshot(self, prefix):
         path = os.path.join(os.getcwd(), "records")
