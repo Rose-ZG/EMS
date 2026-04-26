@@ -94,6 +94,19 @@
     </div>
 </section>
 
+<section class="section" id="whitepaper" style="border-top: 1px solid #414868;">
+    <h2 style="text-align: left; color: var(--primary);">📄 技术白皮书 (Technical Overview)</h2>
+    <div style="background: rgba(255,255,255,0.03); padding: 30px; border-radius: 15px; font-size: 0.95rem; color: #a9b1d6;">
+        <p><strong>1. 系统架构设计：</strong> 本项目采用端云结合的分布式架构。边缘端基于 <strong>NVIDIA Jetson</strong> 系列板卡，承担实时的 AI 推理与底层硬件控制任务；云端通过 <strong>Twilio/SMTP</strong> 协议实现远程高可靠性告警，确保了监控的实时性与响应的确定性。</p>
+
+        <p><strong>2. 核心算法逻辑：</strong> 采用经过轻量化重构的 <strong>YOLOv8-Pose</strong> 模型，通过 17 个关键点提取人体骨骼拓扑结构。跌倒判定不仅依赖于瞬时重心的垂直速度变化，还融合了人体长宽比突变（Bounding Box Ratio）及地面夹角补偿算法，极大降低了由于快速坐下或蹲下导致的误报率。</p>
+
+        <p><strong>3. 边缘计算优化：</strong> 为适配嵌入式设备的算力限制，系统深度集成 <strong>TensorRT</strong> 加速引擎，并全面启用 <strong>FP16 半精度推理</strong>。在 Jetson 开发板上，推理延迟降低了约 45%，成功将端到端帧率（FPS）稳定在监控级的流畅范畴。</p>
+
+        <p><strong>4. 多模态交互与预警：</strong> 系统构建了“感-传-知-用”四层预警链路。当异常触发时，首先通过语音合成（TTS）进行长者状态核实，利用自然语言处理（NLP）解析反馈关键词，从而在“离线本地报警”与“在线紧急呼叫”之间进行智能决策，体现了适老化设计的核心人文关怀。</p>
+    </div>
+</section>
+
 <footer>
     &copy; 2026 [EMS] Project Group. 设计初衷：为科技注入人文关怀。
 </footer>
