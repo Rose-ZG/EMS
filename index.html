@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROSE 小组 | 智能居家康复监测系统 v5.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #7aa2f7; --accent: #9ece6a; --bg: #1a1a2e; --card-bg: #24283b; --text: #c0caf5; }
+        body { font-family: 'Inter', 'PingFang SC', sans-serif; margin: 0; background-color: var(--bg); color: var(--text); line-height: 1.6; }
+
+        /* 导航栏 */
+        nav { padding: 20px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .logo { font-weight: 800; font-size: 1.5rem; color: var(--primary); letter-spacing: -1px; }
+
+        /* 英雄区 (Hero Section) */
+        header { padding: 100px 5% 60px; text-align: center; background: radial-gradient(circle at top right, #2d2d44, var(--bg)); }
+        h1 { font-size: 3.5rem; margin: 0; color: #fff; letter-spacing: -2px; }
+        .tagline { font-size: 1.25rem; color: #a9b1d6; max-width: 700px; margin: 20px auto; }
+        .hero-btns { margin-top: 30px; }
+        .btn { padding: 12px 32px; border-radius: 50px; text-decoration: none; font-weight: 600; transition: 0.3s; display: inline-block; }
+        .btn-primary { background: var(--primary); color: #1a1a2e; }
+        .btn-outline { border: 2px solid var(--primary); color: var(--primary); margin-left: 15px; }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(122, 162, 247, 0.3); }
+
+        /* 内容区块 */
+        .section { padding: 80px 5%; max-width: 1200px; margin: 0 auto; }
+        h2 { font-size: 2rem; color: var(--accent); margin-bottom: 40px; text-align: center; }
+
+        /* 功能卡片 */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+        .card { background: var(--card-bg); padding: 30px; border-radius: 20px; border: 1px solid #414868; transition: 0.3s; }
+        .card:hover { border-color: var(--primary); background: #292e42; }
+        .card i { font-size: 2rem; display: block; margin-bottom: 15px; }
+        .card h3 { margin-top: 0; color: #fff; }
+
+        /* 技术栈展示 */
+        .tech-tag { display: inline-block; padding: 5px 15px; background: #414868; border-radius: 5px; margin: 5px; font-size: 0.9rem; font-weight: bold; }
+
+        footer { text-align: center; padding: 40px; border-top: 1px solid #414868; font-size: 0.9rem; opacity: 0.6; }
+
+        /* 响应式 */
+        @media (max-width: 768px) { h1 { font-size: 2.2rem; } .hero-btns { display: flex; flex-direction: column; gap: 15px; } .btn-outline { margin-left: 0; } }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="logo">PROJECT ROSE</div>
+    <div class="nav-links">
+        <a href="#features" style="color: inherit; text-decoration: none; margin-left: 20px;">核心功能</a>
+        <a href="#tech" style="color: inherit; text-decoration: none; margin-left: 20px;">技术架构</a>
+    </div>
+</nav>
+
+<header>
+    <h1>让科技守护家中的每一秒</h1>
+    <p class="tagline">基于边缘计算与 YOLOv8-Pose 的高精度跌倒监测系统。专为长者设计，集成语音互动确认与多模态报警，重塑居家养老安全标准。</p>
+    <div class="hero-btns">
+        <a href="https://gitee.com/r05e/elder_-monitor_-system" class="btn btn-primary">GitHub 源码</a>
+        <a href="#demo" class="btn btn-outline">观看演示视频</a>
+    </div>
+</header>
+
+<section class="section" id="features">
+    <h2>✨ 系统亮点</h2>
+    <div class="grid">
+        <div class="card">
+            <h3>🏃 毫秒级姿态检测</h3>
+            <p>基于 YOLOv8-pose 深度学习算法，实时追踪人体 17 个关键点，结合倾角与宽高比双重逻辑，精准识别异常跌倒。</p>
+        </div>
+        <div class="card">
+            <h3>🎙️ 智能确认交互</h3>
+            <p>内置语音合成与识别模块。检测到疑似跌倒后，系统自动发起语音问询，通过长者回复判定风险级别，有效过滤误报。</p>
+        </div>
+        <div class="card">
+            <h3>🚨 多链路报警网络</h3>
+            <p>同步触发本地声光警报、GPIO 串口硬件反馈及 Twilio 远程电话呼叫，确保救援信息第一时间送达联系人。</p>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="tech" style="background: rgba(0,0,0,0.1); border-radius: 40px;">
+    <h2>🛠️ 技术栈</h2>
+    <div style="text-align: center;">
+        <span class="tech-tag">NVIDIA Jetson</span>
+        <span class="tech-tag">YOLOv8-Pose</span>
+        <span class="tech-tag">PySide6</span>
+        <span class="tech-tag">OpenCV</span>
+        <span class="tech-tag">FP16 CUDA 加速</span>
+        <span class="tech-tag">Twilio API</span>
+        <span class="tech-tag">Python 3.10</span>
+        <span class="tech-tag">Edge AI</span>
+    </div>
+</section>
+
+<footer>
+    &copy; 2026 [EMS] Project Group. 设计初衷：为科技注入人文关怀。
+</footer>
+
+</body>
+</html>
