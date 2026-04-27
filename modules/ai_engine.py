@@ -1,5 +1,6 @@
 import cv2
 import time
+import os
 import platform
 import numpy as np
 from collections import deque
@@ -68,8 +69,15 @@ class VoiceAssistant:
 class VideoWorker(QThread):
     change_pixmap_signal = Signal(QImage, bool, float)
 
-    def __init__(self, model_path='yolov8n-pose.pt', debug=False):
+    # 【升级核心点1】：默认路径改为训练好的best.pt。如果找不到，自动回退到官方基座模型。
+    def __init__(self, model_path='runs/pose/fall_detection/weights/best.pt', debug=False):
         super().__init__()
+
+        # 智能模型回退机制，防止答辩现场换电脑找不到路径导致崩溃
+        if not os.path.exists(model_path):
+            print(f"[AI] 未检测到自定义模型 ({model_path})，自动回退到基础模型 yolov8n-pose.pt")
+            model_path = 'yolov8n-pose.pt'
+
         try:
             print(f"[AI] 正在加载模型: {model_path}...")
             self.model = YOLO(model_path)
@@ -89,7 +97,7 @@ class VideoWorker(QThread):
         self.inference_size = 192
         self.frame_skip = 2
 
-        # Jetson Ubuntu 环境自动开启 FP16 加速
+        # Jetson Ubuntu环境自动开启FP16加速
         self.os_type = platform.system()
         self.use_half_precision = True if self.os_type == "Linux" else False
 
@@ -138,6 +146,8 @@ class VideoWorker(QThread):
                 debug_info["box_ratio"] = ratio
                 kps = r.keypoints.data[i].cpu().numpy()
 
+                # 【升级核心点2】：利用自定义训练后更精准的关键点置信度
+                # 要求双肩(5,6)和双胯(11,12)的置信度大于0.4才进行精密计算
                 if len(kps) >= 13 and all(kps[j][2] > 0.4 for j in [5, 6, 11, 12]):
                     shoulder_mid = np.array([(kps[5][0] + kps[6][0]) / 2, (kps[5][1] + kps[6][1]) / 2])
                     hip_mid = np.array([(kps[11][0] + kps[12][0]) / 2, (kps[11][1] + kps[12][1]) / 2])
@@ -150,13 +160,13 @@ class VideoWorker(QThread):
                         angle = np.degrees(np.arccos(cos_ang))
                         debug_info["tilt_angle"] = angle
 
-                        # 核心判定：变宽了 AND 倾斜了
+                        # 核心判定：变宽了AND倾斜了
                         if angle > self.angle_threshold and ratio > self.threshold:
                             is_fall = True
                             debug_info["method"] = "combo_box_angle"
                             break
                 else:
-                    # 兜底策略：只看极其严重的宽高比失调 (被遮挡)
+                    # 兜底策略：如果关键点因遮挡无法高置信度识别，仅靠极其严重的宽高比失调触发报警
                     if ratio > max(1.5, self.threshold * 1.5):
                         is_fall = True
                         debug_info["method"] = "strict_box_ratio"
